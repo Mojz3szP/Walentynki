@@ -27,7 +27,7 @@ html = f"""
 
   .page {{
     background: #ffb6c1;
-    min-height: 1000vh;
+    min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
