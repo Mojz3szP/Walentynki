@@ -5,11 +5,10 @@ st.set_page_config(page_title="Walentynka", layout="centered")
 
 if "yes_clicked" not in st.session_state:
     st.session_state.yes_clicked = False
-
 if "fire_fx" not in st.session_state:
     st.session_state.fire_fx = False
 
-# Obsługa kliknięcia TAK przez query param (?ans=yes)
+# Klik TAK przez query param (?ans=yes)
 params = st.query_params
 if params.get("ans") == "yes":
     st.session_state.yes_clicked = True
@@ -21,8 +20,7 @@ else:
 html = f"""
 <style>
   html, body {{
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
     background: transparent;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
   }}
@@ -47,12 +45,10 @@ html = f"""
     overflow: hidden;
   }}
 
-  .pulse {{
-    animation: pulse 650ms ease-in-out 1;
-  }}
+  .pulse {{ animation: pulse 650ms ease-in-out 1; }}
   @keyframes pulse {{
-    0%   {{ transform: scale(1); }}
-    40%  {{ transform: scale(1.03); }}
+    0% {{ transform: scale(1); }}
+    40% {{ transform: scale(1.03); }}
     100% {{ transform: scale(1); }}
   }}
 
@@ -64,47 +60,52 @@ html = f"""
     margin: 0 0 26px 0;
   }}
 
-  .btn-row {{
-    display: flex;
-    justify-content: center;
-    gap: 26px;
-    margin-top: 12px;
+  /* arena na przyciski */
+  .arena {{
     position: relative;
-    height: 190px;
+    height: 200px;
+    margin-top: 10px;
   }}
 
-  .yes-btn {{
+  /* wspólne parametry — TA sama wielkość */
+  .btn {{
     border: none;
     cursor: pointer;
     font-size: 20px;
     font-weight: 900;
     padding: 14px 34px;
     border-radius: 14px;
+    min-width: 160px;   /* zapewnia równe szerokości */
+    text-align: center;
+    user-select: none;
+  }}
+
+  /* TAK */
+  .yes-btn {{
+    position: absolute;
+    top: 70px;
+    left: 30%;
+    transform: translateX(-50%);
     background: #ff2e88;
     color: white;
     box-shadow: 0 8px 18px rgba(255,46,136,0.35);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
   }}
   .yes-btn:hover {{
-    transform: scale(1.12);
+    transform: translateX(-50%) scale(1.10);
     box-shadow: 0 12px 26px rgba(255,46,136,0.45);
   }}
 
+  /* NIE */
   .no-btn {{
     position: absolute;
-    top: 80px;
-    left: 420px;
-    border: none;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: 900;
-    padding: 14px 34px;
-    border-radius: 14px;
+    top: 70px;
+    left: 70%;
+    transform: translateX(-50%);
     background: #ffffff;
     color: #b1005a;
     box-shadow: 0 8px 18px rgba(0,0,0,0.15);
-    user-select: none;
-    will-change: transform, top, left;
+    will-change: top, left;
   }}
 
   .msg {{
@@ -133,14 +134,8 @@ html = f"""
     filter: drop-shadow(0 6px 10px rgba(0,0,0,0.15));
   }}
   @keyframes floatUp {{
-    from {{
-      transform: translateY(0) translateX(0) rotate(0deg);
-      opacity: 0.95;
-    }}
-    to {{
-      transform: translateY(-520px) translateX(var(--drift)) rotate(18deg);
-      opacity: 0;
-    }}
+    from {{ transform: translateY(0) translateX(0) rotate(0deg); opacity: 0.95; }}
+    to   {{ transform: translateY(-520px) translateX(var(--drift)) rotate(18deg); opacity: 0; }}
   }}
 </style>
 
@@ -150,10 +145,11 @@ html = f"""
 
     <div class="title">Misiu, czy zostaniesz moją walentynką?</div>
 
-    <div class="btn-row" id="arena">
-      <button class="yes-btn" onclick="window.top.location.search='?ans=yes'">Tak</button>
+    <div class="arena" id="arena">
+      <!-- NAPRAWA: w iframe lepiej działa parent.location.href -->
+      <button class="btn yes-btn" id="yesBtn">Tak</button>
 
-      <button id="noBtn" class="no-btn"
+      <button class="btn no-btn" id="noBtn"
         onclick="return false;"
         onmousedown="return false;"
         ontouchstart="return false;"
@@ -172,12 +168,26 @@ html = f"""
     return Math.random() * (max - min) + min;
   }}
 
+  // ----- Klik TAK (naprawione)
+  (function setupYes() {{
+    const yes = document.getElementById("yesBtn");
+    if (!yes) return;
+
+    yes.addEventListener("click", () => {{
+      const p = window.parent || window.top || window;
+      // zachowaj ścieżkę i ustaw query
+      const base = p.location.pathname || "/";
+      p.location.href = base + "?ans=yes";
+    }});
+  }})();
+
+  // ----- Ucieczka NIE dopiero BARDZO blisko
   function setupRunaway() {{
     const arena = document.getElementById("arena");
     const btn = document.getElementById("noBtn");
     if (!arena || !btn) return;
 
-    const phrases = ["Nie","Na pewno?","Serio?","Ej no… 🥺","Nie dasz rady 😏","Zastanów się 😳","No weź… ❤️"];
+    const phrases = ["Nie", "Na pewno?", "Serio?", "Ej no… 🥺", "No weź… ❤️"];
     let idx = 0;
 
     function setTextNext() {{
@@ -185,23 +195,38 @@ html = f"""
       btn.textContent = phrases[idx];
     }}
 
-    function placeInside(left, top) {{
+    function placeInside(leftPx, topPx) {{
       const ar = arena.getBoundingClientRect();
       const br = btn.getBoundingClientRect();
-      const maxLeft = Math.max(0, ar.width - br.width);
-      const maxTop  = Math.max(0, ar.height - br.height);
-      btn.style.left = clamp(left, 0, maxLeft) + "px";
-      btn.style.top  = clamp(top, 0, maxTop) + "px";
+
+      // uwaga: btn ma translateX(-50%), więc left to środek przycisku
+      const halfW = br.width / 2;
+      const halfH = br.height / 2;
+
+      const minLeft = halfW;
+      const maxLeft = ar.width - halfW;
+      const minTop  = halfH;
+      const maxTop  = ar.height - halfH;
+
+      btn.style.left = clamp(leftPx, minLeft, maxLeft) + "px";
+      btn.style.top  = clamp(topPx, minTop, maxTop) + "px";
     }}
 
-    placeInside(420, 80);
+    // start symetryczny: 70% szerokości, 70px w dół
+    // (ustawiamy w px po pierwszym renderze)
+    setTimeout(() => {{
+      const ar = arena.getBoundingClientRect();
+      placeInside(ar.width * 0.70, 95);
+    }}, 0);
 
-    const threshold = 150;
-    const stepMin = 55;
-    const stepMax = 150;
+    const threshold = 65;     // <-- tu jest "prawie na nim"
+    const stepMin = 90;       // jak już blisko, to uciekaj wyraźnie
+    const stepMax = 170;
 
     function flee(mx, my) {{
+      const ar = arena.getBoundingClientRect();
       const b = btn.getBoundingClientRect();
+
       const bx = b.left + b.width/2;
       const by = b.top + b.height/2;
 
@@ -209,15 +234,19 @@ html = f"""
       const dy = by - my;
       const dist = Math.sqrt(dx*dx + dy*dy);
 
-      if (dist > threshold) return;
+      if (dist > threshold) return;  // <-- rusza się dopiero bardzo blisko
 
       const nx = dx / (dist || 1);
       const ny = dy / (dist || 1);
 
-      const step = rand(stepMin, stepMax) * (1 + (threshold - dist)/threshold);
+      const step = rand(stepMin, stepMax);
 
-      let newLeft = btn.offsetLeft + nx * step + rand(-22, 22);
-      let newTop  = btn.offsetTop  + ny * step + rand(-22, 22);
+      // nowa pozycja w układzie areny (px)
+      const currentLeft = (b.left - ar.left) + b.width/2;
+      const currentTop  = (b.top  - ar.top)  + b.height/2;
+
+      let newLeft = currentLeft + nx * step + rand(-10, 10);
+      let newTop  = currentTop  + ny * step + rand(-10, 10);
 
       placeInside(newLeft, newTop);
       setTextNext();
@@ -238,6 +267,7 @@ html = f"""
     }});
   }}
 
+  // ----- FX (zostawiam jak było)
   function playDing() {{
     try {{
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -316,7 +346,7 @@ html = f"""
     const H = () => card.getBoundingClientRect().height;
     const colors = ["#ff2e88", "#b1005a", "#ffffff", "#ff6fb3", "#ffd1e6"];
 
-    for (let i=0; i<160; i++) {{
+    for (let i=0; i<150; i++) {{
       pieces.push({{
         x: rand(0, W()),
         y: rand(-H()*0.3, 0),
@@ -335,11 +365,8 @@ html = f"""
       const elapsed = t - t0;
 
       ctx.clearRect(0, 0, W(), H());
-
       for (const p of pieces) {{
-        p.x += p.vx;
-        p.y += p.vy;
-        p.a += p.va;
+        p.x += p.vx; p.y += p.vy; p.a += p.va;
         p.vy += 0.02;
 
         if (p.y > H() + 20) {{
@@ -375,8 +402,8 @@ html = f"""
       card.classList.add("pulse");
     }}
     playDing();
-    runConfetti(2400);
-    spawnHearts(2400);
+    runConfetti(2200);
+    spawnHearts(2200);
   }}
 
   setupRunaway();
@@ -386,5 +413,4 @@ html = f"""
 </script>
 """
 
-# To renderuje HTML+JS poprawnie (w iframe), bez pokazywania tagów jako tekst
 components.html(html, height=640, scrolling=False)
